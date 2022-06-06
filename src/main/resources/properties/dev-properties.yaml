@@ -1,0 +1,15 @@
+# Listener configuration
+http:
+  host: "0.0.0.0"
+  port: "8081"
+vmqueue:
+  name: "VM_Q"  
+workday:
+  password: ""
+  hostname: "impl-cc.workday.com"
+  tenantname: "mulesoft_pt1"
+  username: ""
+  responsetime_seconds: "360"
+  testcase:
+    organizationref: "50006854"
+    pagesize: "10"

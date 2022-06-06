@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:workday="http://www.mulesoft.org/schema/mule/workday"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/workday http://www.mulesoft.org/schema/mule/workday/current/mule-workday.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+	<flow name="workday-getallworkersManualFlow" doc:id="95fb8290-df0c-41bd-99e7-4dd115ffafec" >
+		<http:listener doc:name="Listener" doc:id="1fdc8efc-852a-4949-b1f9-ad852c5fe75c" config-ref="HTTP_Listener_config" path="/"/>
+		<flow-ref doc:name="Call Get Workers" doc:id="d3717b64-216c-4851-baa2-5f478178f1a2" name="workday-getallworkersFlow"/>
+		<set-payload value="Success!" doc:name="Set Payload" doc:id="6e9765f5-d4ee-4648-abcc-5fff670ae332" />
+	</flow>
+	<flow name="workday-getallworkersFlow" doc:id="32b400d6-8282-413f-909f-4708e9618398">
+		<set-variable value='${workday.testcase.organizationref}' doc:name="organizationref" doc:id="992162a2-3ae6-45bc-93ce-11f7ba7cd2b5" variableName="organizationref"/>
+		<set-variable value="${workday.testcase.pagesize}" doc:name="pagesize" doc:id="b2b369d3-795d-41ac-b440-1d18e204a3f1" variableName="pagesize"/>
+		<ee:transform doc:name="Create Get_Workers Request" doc:id="096fbef9-957b-4141-a637-a44ddcecf9a0">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ns0#Get_Workers_Request @(ns0#version: "v30.0"): {
+		ns0#Request_Criteria: {
+			ns0#Organization_Reference: {
+				ns0#ID @(ns0#"type": "Organization_Reference_ID"): vars.organizationref
+			}
+		},
+		ns0#Response_Filter: {
+			ns0#Page: 1,
+			ns0#Count: vars.pagesize
+		},
+		ns0#Response_Group: {
+			ns0#Include_Reference: 1,
+			ns0#Include_Personal_Information: 1
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<workday:human-resources doc:name="Human_Resources:Get_Workers()" doc:id="79887662-c4e3-4517-a521-544067dd0774" config-ref="Workday_Config" operation="Get_Workers" />
+		<ee:transform doc:name="Extract Reponse Data" doc:id="101193e5-f777-4dba-8913-4604055bbc86">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="totalResults"><![CDATA[%dw 2.0
+ns ns0 urn:com.workday/bsvc
+output application/java
+---
+payload.ns0#Get_Workers_Response.ns0#Response_Results.ns0#Total_Results]]></ee:set-variable>
+				<ee:set-variable variableName="totalPages"><![CDATA[%dw 2.0
+ns ns0 urn:com.workday/bsvc
+output application/java
+---
+payload.ns0#Get_Workers_Response.ns0#Response_Results.ns0#Total_Pages]]></ee:set-variable>
+				<ee:set-variable variableName="pageResults"><![CDATA[%dw 2.0
+ns ns0 urn:com.workday/bsvc
+output application/java
+---
+payload.ns0#Get_Workers_Response.ns0#Response_Results.ns0#Page_Results]]></ee:set-variable>
+				<ee:set-variable variableName="page"><![CDATA[%dw 2.0
+ns ns0 urn:com.workday/bsvc
+output application/java
+---
+payload.ns0#Get_Workers_Response.ns0#Response_Results.ns0#Page]]></ee:set-variable>
+				<ee:set-variable variableName="workingPage"><![CDATA[%dw 2.0
+output application/java
+---
+1]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Call Response Iterator" doc:id="2ba14577-499d-4724-b8a1-3e865736ce31" name="workday-getallworkersIterationFlow"/>
+	</flow>
+	<flow name="workday-getallworkersIterationFlow" doc:id="b49bc44b-9b7c-4d7f-8869-7200923a499d" >
+		<choice doc:name="Choice" doc:id="9da6f19e-c112-424b-b5b1-cb5132372263" >
+			<when expression="vars.workingPage &lt; vars.totalPages">
+				<set-payload value="#[vars.workingPage]" doc:name="Set Payload" doc:id="ec176244-848a-4b72-af2d-9e00e80c6d43" />
+				<flow-ref doc:name="Publish to Queue" doc:id="c4e1094a-5973-4f8a-931b-1c325d754aa3" name="workday-getallworkersPublishFlow"/>
+				<ee:transform doc:name="Extract Pagination Info" doc:id="9e50a0fe-c005-43ad-8f8e-b8f542edb3f4">
+					<ee:message>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="workingPage" ><![CDATA[%dw 2.0
+output application/java
+---
+sum([vars.workingPage,1])]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<flow-ref doc:name="Iterate" doc:id="faa50dae-8da4-42b4-8d51-a96969518be7" name="workday-getallworkersIterationFlow"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="96237121-8662-47fd-b3c6-35203707c103" message="## DONE LOADING PAGES ##"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="workday-getallworkersPublishFlow" doc:id="77326e93-0546-4c25-bf01-05d03995bd3f" >
+		<logger level="INFO" doc:name="Logger" doc:id="7ad3537d-7c41-493c-9f43-e5cc8701169d" message="## PUBLISHING PAGE: #[payload]"/>
+		<vm:publish doc:name="Publish" doc:id="80b57860-a977-4adb-870e-95533c035f0a" queueName="@{vmqueue.name}" sendCorrelationId="AUTO" config-ref="VM_Config"/>
+	</flow>
+	<flow name="workday-getallworkersListenerFlow" doc:id="6fbb7888-e7ee-4f0a-b8fb-2ab58469d762" >
+		<vm:listener queueName="@{vmqueue.name}" doc:name="Listener" doc:id="cd14a357-4bc2-4c62-99e4-6f263499fd94" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="826d1e17-1181-41da-b388-f924ced126af" message="## CONSUMING PAGE: #[payload]" />
+		<set-variable value="#[payload]" doc:name="Set Page Number" doc:id="8a4164d0-f6c1-4ab2-a675-f9ed770420b5" variableName="pageNumber" />
+		<ee:transform doc:name="Get_Workers Request" doc:id="e280494b-b2f5-4294-8a37-b9e3d8dd842a">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ns0#Get_Workers_Request @(ns0#version: "v30.0"): {
+		ns0#Response_Filter: {
+			ns0#Page: vars.pageNumber,
+			ns0#Count: 10
+		},
+		ns0#Response_Group: {
+			ns0#Include_Reference: 1,
+			ns0#Include_Personal_Information: 1
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<workday:human-resources operation="Get_Workers" doc:name="Human_Resources:Get_Workers()" doc:id="175ea435-dcb8-43d9-8025-c2f415f006db" config-ref="Workday_Config" responseTimeout="${workday.responsetime_seconds}" responseTimeoutUnit="SECONDS" >
+		</workday:human-resources>
+		<ee:transform doc:name="Extract Response Data" doc:id="3dc2fe33-6245-4eb1-b984-0958063ad5b1">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+ns ns0 urn:com.workday/bsvc
+output application/java
+---
+payload.ns0#Get_Workers_Response.ns0#Response_Data.*ns0#Worker map (item, index) -> {
+	"Employee_ID": item.ns0#Worker_Reference.*ns0#ID[?($.@ns0#"type"=='Employee_ID')][0],
+	"First_Name": item.ns0#Worker_Data.ns0#Personal_Data.ns0#Name_Data.ns0#Legal_Name_Data.ns0#Name_Detail_Data.ns0#First_Name,
+	"Last_Name": item.ns0#Worker_Data.ns0#Personal_Data.ns0#Name_Data.ns0#Legal_Name_Data.ns0#Name_Detail_Data.ns0#Last_Name,
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="0be26552-c729-4c33-8c12-83c9f5e7f49b">
+			<logger level="INFO" doc:name="Logger" doc:id="0c387d42-0b74-42d5-ac1e-2d2920231173" message='#[payload.Employee_ID ++ " / " ++ payload.First_Name ++ " / " ++ payload.Last_Name]' />
+		</foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="3811ab03-7b37-4903-9aba-bc1765c33f9b" message="## DONE PROCESSING PAGE #[vars.pageNumber] ##" />
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="aebb5d98-33ca-4ec5-bf0d-54ebb2a65f0d" >
+				<logger level="INFO" doc:name="Logger" doc:id="f8d6a71e-55bd-45af-a2df-29f7f15a39b2" message="## ERROR LOADING PAGE: #[vars.pageNumber] : #[error.errorType.asString] ##"/>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+</mule>

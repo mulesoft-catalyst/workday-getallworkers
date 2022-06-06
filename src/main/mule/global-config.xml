@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:workday="http://www.mulesoft.org/schema/mule/workday" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/workday http://www.mulesoft.org/schema/mule/workday/current/mule-workday.xsd">
+	<configuration-properties doc:name="Configuration properties" doc:id="83639365-fad3-4685-a3e7-397f5d9577ed" file="properties/${env}-properties.yaml" />
+	<global-property doc:name="Global Property" doc:id="c509522a-426b-4092-869d-76daa4a42c59" name="env" value="dev" />
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="f5a88d53-fc81-4d5c-83cc-32b964cb4278" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<workday:config name="Workday_Config" doc:name="Workday Config" doc:id="7386a7c3-a4ae-4108-a2b4-0be551eb4c8e" >
+		<workday:basic-authentication-api-connection password="${workday.password}" hostName="${workday.hostname}" tenantName="${workday.tenantname}" userName="${workday.username}" />
+	</workday:config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="ba019ca1-940f-4a31-b3f5-440bf8fdbaf6">
+		<vm:queues >
+			<vm:queue queueName="@{vmqueue.name}" />
+		</vm:queues>
+	</vm:config>
+</mule>
