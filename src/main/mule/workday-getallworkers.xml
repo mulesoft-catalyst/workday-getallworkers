@@ -12,10 +12,10 @@ http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/cu
 		<flow-ref doc:name="Call Get Workers" doc:id="d3717b64-216c-4851-baa2-5f478178f1a2" name="workday-getallworkersFlow"/>
 		<set-payload value="Success!" doc:name="Set Payload" doc:id="6e9765f5-d4ee-4648-abcc-5fff670ae332" />
 	</flow>
-	<flow name="workday-getallworkersFlow" doc:id="32b400d6-8282-413f-909f-4708e9618398">
-		<set-variable value='${workday.testcase.organizationref}' doc:name="organizationref" doc:id="992162a2-3ae6-45bc-93ce-11f7ba7cd2b5" variableName="organizationref"/>
-		<set-variable value="${workday.testcase.pagesize}" doc:name="pagesize" doc:id="b2b369d3-795d-41ac-b440-1d18e204a3f1" variableName="pagesize"/>
-		<ee:transform doc:name="Create Get_Workers Request" doc:id="096fbef9-957b-4141-a637-a44ddcecf9a0">
+	<flow name="workday-getallworkersFlow" doc:id="13f752cb-3189-4cdd-a04c-b3312eb9008a">
+		<set-variable value='${workday.testcase.organizationref}' doc:name="organizationref" doc:id="9e989a03-d873-4de5-b33a-56c6302d4771" variableName="organizationref"/>
+		<set-variable value="${workday.testcase.pagesize}" doc:name="pagesize" doc:id="99cace53-93a3-43be-a8e9-ff2aa08704e0" variableName="pagesize"/>
+		<ee:transform doc:name="Create Get_Workers Request" doc:id="ab5eec6e-1ee6-4a8b-bc41-a82f730c479a">
 			<ee:message>
 				<ee:set-payload><![CDATA[%dw 2.0
 output application/xml
@@ -40,8 +40,8 @@ ns ns0 urn:com.workday/bsvc
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<workday:human-resources doc:name="Human_Resources:Get_Workers()" doc:id="79887662-c4e3-4517-a521-544067dd0774" config-ref="Workday_Config" operation="Get_Workers" />
-		<ee:transform doc:name="Extract Reponse Data" doc:id="101193e5-f777-4dba-8913-4604055bbc86">
+		<workday:human-resources doc:name="Human_Resources:Get_Workers()" doc:id="be309206-4e1f-4c3e-9ffc-763b68766b39" config-ref="Workday_Config" operation="Get_Workers" />
+		<ee:transform doc:name="Extract Reponse Data" doc:id="99bf8ce5-eb8c-45b7-a211-12a4eb7dc703">
 			<ee:message>
 			</ee:message>
 			<ee:variables>
@@ -71,39 +71,32 @@ output application/java
 1]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<flow-ref doc:name="Call Response Iterator" doc:id="2ba14577-499d-4724-b8a1-3e865736ce31" name="workday-getallworkersIterationFlow"/>
+		<flow-ref doc:name="Call Response Iterator" doc:id="fd7ca707-35ca-440f-a53b-d5beebc963ac" name="workday-getallworkersIterationFlow"/>
 	</flow>
-	<flow name="workday-getallworkersIterationFlow" doc:id="b49bc44b-9b7c-4d7f-8869-7200923a499d" >
-		<choice doc:name="Choice" doc:id="9da6f19e-c112-424b-b5b1-cb5132372263" >
-			<when expression="vars.workingPage &lt; vars.totalPages">
-				<set-payload value="#[vars.workingPage]" doc:name="Set Payload" doc:id="ec176244-848a-4b72-af2d-9e00e80c6d43" />
-				<flow-ref doc:name="Publish to Queue" doc:id="c4e1094a-5973-4f8a-931b-1c325d754aa3" name="workday-getallworkersPublishFlow"/>
-				<ee:transform doc:name="Extract Pagination Info" doc:id="9e50a0fe-c005-43ad-8f8e-b8f542edb3f4">
-					<ee:message>
-					</ee:message>
-					<ee:variables >
-						<ee:set-variable variableName="workingPage" ><![CDATA[%dw 2.0
-output application/java
+	<sub-flow name="workday-getallworkersIterationFlow" doc:id="4bb68431-d56b-42d9-a923-2fc7f721f987" >
+		<ee:transform doc:name="Transform Message" doc:id="1bc955f3-d57d-4113-b1ce-4a98861faa22">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+var upperLimit = vars.totalPages as Number
+output application/json
 ---
-sum([vars.workingPage,1])]]></ee:set-variable>
-					</ee:variables>
-				</ee:transform>
-				<flow-ref doc:name="Iterate" doc:id="faa50dae-8da4-42b4-8d51-a96969518be7" name="workday-getallworkersIterationFlow"/>
-			</when>
-			<otherwise >
-				<logger level="INFO" doc:name="Logger" doc:id="96237121-8662-47fd-b3c6-35203707c103" message="## DONE LOADING PAGES ##"/>
-			</otherwise>
-		</choice>
+1 to upperLimit]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="e9408520-3ed0-4417-a5c9-5830d644033e">
+			<flow-ref doc:name="Publish to Queue" doc:id="e623741e-588c-4378-938c-073ca4414218" name="workday-getallworkersPublishFlow" />
+		</parallel-foreach>
+	</sub-flow>
+	<flow name="workday-getallworkersPublishFlow" doc:id="65fbc058-d210-40e0-82df-dea8992138ec" >
+		<logger level="INFO" doc:name="Logger" doc:id="f8657e9c-7ed8-4fff-abc6-438d7b267f95" message="## PUBLISHING PAGE: #[payload]" />
+		<vm:publish doc:name="Publish" doc:id="3f0079a5-a818-41b8-b9ca-8126d876ee75" queueName="@{vmqueue.name}" sendCorrelationId="AUTO" config-ref="VM_Config"/>
 	</flow>
-	<flow name="workday-getallworkersPublishFlow" doc:id="77326e93-0546-4c25-bf01-05d03995bd3f" >
-		<logger level="INFO" doc:name="Logger" doc:id="7ad3537d-7c41-493c-9f43-e5cc8701169d" message="## PUBLISHING PAGE: #[payload]"/>
-		<vm:publish doc:name="Publish" doc:id="80b57860-a977-4adb-870e-95533c035f0a" queueName="@{vmqueue.name}" sendCorrelationId="AUTO" config-ref="VM_Config"/>
-	</flow>
-	<flow name="workday-getallworkersListenerFlow" doc:id="6fbb7888-e7ee-4f0a-b8fb-2ab58469d762" >
-		<vm:listener queueName="@{vmqueue.name}" doc:name="Listener" doc:id="cd14a357-4bc2-4c62-99e4-6f263499fd94" config-ref="VM_Config"/>
-		<logger level="INFO" doc:name="Logger" doc:id="826d1e17-1181-41da-b388-f924ced126af" message="## CONSUMING PAGE: #[payload]" />
-		<set-variable value="#[payload]" doc:name="Set Page Number" doc:id="8a4164d0-f6c1-4ab2-a675-f9ed770420b5" variableName="pageNumber" />
-		<ee:transform doc:name="Get_Workers Request" doc:id="e280494b-b2f5-4294-8a37-b9e3d8dd842a">
+	<flow name="workday-getallworkersListenerFlow" doc:id="3d6dcb45-ef23-4393-9459-d4f30f3f8997" >
+		<vm:listener queueName="@{vmqueue.name}" doc:name="Listener" doc:id="06b13c47-48e4-441c-ae14-f9eb8b3e30b3" config-ref="VM_Config"/>
+		<async doc:name="Async" doc:id="d6ca1e66-3137-4f9d-891a-a67c0ea7faf7" >
+			<logger level="INFO" doc:name="Logger" doc:id="42a8ea65-4283-4785-98da-c11a18f5cfab" message="## CONSUMING PAGE: #[payload]" />
+			<set-variable value="#[payload]" doc:name="Set Page Number" doc:id="1c5a69e4-cfb5-424d-bc2d-3dac16c832b4" variableName="pageNumber" />
+			<ee:transform doc:name="Get_Workers Request" doc:id="b0507ad3-6ced-400e-87b7-eab011498d50">
 			<ee:message>
 				<ee:set-payload><![CDATA[%dw 2.0
 output application/xml
@@ -123,9 +116,9 @@ ns ns0 urn:com.workday/bsvc
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<workday:human-resources operation="Get_Workers" doc:name="Human_Resources:Get_Workers()" doc:id="175ea435-dcb8-43d9-8025-c2f415f006db" config-ref="Workday_Config" responseTimeout="${workday.responsetime_seconds}" responseTimeoutUnit="SECONDS" >
+			<workday:human-resources operation="Get_Workers" doc:name="Human_Resources:Get_Workers()" doc:id="87dda326-03ff-48cf-8edb-34b3ab4033c4" config-ref="Workday_Config" responseTimeout="${workday.responsetime_seconds}" responseTimeoutUnit="SECONDS">
 		</workday:human-resources>
-		<ee:transform doc:name="Extract Response Data" doc:id="3dc2fe33-6245-4eb1-b984-0958063ad5b1">
+			<ee:transform doc:name="Extract Response Data" doc:id="123ad7c1-9355-45f3-9396-ea9fd31a71d4">
 			<ee:message>
 				<ee:set-payload><![CDATA[%dw 2.0
 ns ns0 urn:com.workday/bsvc
@@ -138,14 +131,15 @@ payload.ns0#Get_Workers_Response.ns0#Response_Data.*ns0#Worker map (item, index)
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<foreach doc:name="For Each" doc:id="0be26552-c729-4c33-8c12-83c9f5e7f49b">
-			<logger level="INFO" doc:name="Logger" doc:id="0c387d42-0b74-42d5-ac1e-2d2920231173" message='#[payload.Employee_ID ++ " / " ++ payload.First_Name ++ " / " ++ payload.Last_Name]' />
+			<foreach doc:name="For Each" doc:id="7d8e0a4e-0a42-4eb0-97ef-67fafacab7ad">
+			<logger level="INFO" doc:name="Logger" doc:id="3578483c-78a7-4de4-a790-b19b44084038" message='#[payload.Employee_ID ++ " / " ++ payload.First_Name ++ " / " ++ payload.Last_Name]' />
 		</foreach>
-		<logger level="INFO" doc:name="Logger" doc:id="3811ab03-7b37-4903-9aba-bc1765c33f9b" message="## DONE PROCESSING PAGE #[vars.pageNumber] ##" />
+			<logger level="INFO" doc:name="Logger" doc:id="edee83b3-80de-40e3-8a05-e654d2344d1a" message="## DONE PROCESSING PAGE #[vars.pageNumber] ##" />
+		</async>
 		<error-handler >
-			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="aebb5d98-33ca-4ec5-bf0d-54ebb2a65f0d" >
-				<logger level="INFO" doc:name="Logger" doc:id="f8d6a71e-55bd-45af-a2df-29f7f15a39b2" message="## ERROR LOADING PAGE: #[vars.pageNumber] : #[error.errorType.asString] ##"/>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="1b971d27-6b18-4e20-a90b-bb4cbbaf0adc" >
+				<logger level="INFO" doc:name="Logger" doc:id="1c9a3f27-482f-4b29-8ff5-48e601dcef5e" message="## ERROR LOADING PAGE: #[vars.pageNumber] : #[error.errorType.asString] ##"/>
 			</on-error-continue>
 		</error-handler>
-	</flow>
+	</flow>	
 </mule>
