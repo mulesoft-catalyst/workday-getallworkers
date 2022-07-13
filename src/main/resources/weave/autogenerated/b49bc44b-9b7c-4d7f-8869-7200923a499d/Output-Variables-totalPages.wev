@@ -1,4 +1,0 @@
-%dw 2.0
-
-type auto_b49bc44b_9b7c_4d7f_8869_7200923a499d_Output_Variables_totalPages = Number | Null
-

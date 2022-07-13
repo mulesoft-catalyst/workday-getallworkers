@@ -7,7 +7,7 @@ vmqueue:
 workday:
   password: ""
   hostname: "impl-cc.workday.com"
-  tenantname: "mulesoft_pt1"
+  tenantname: ""
   username: ""
   responsetime_seconds: "360"
   testcase:

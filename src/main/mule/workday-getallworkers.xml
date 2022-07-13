@@ -71,12 +71,9 @@ output application/java
 1]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<flow-ref doc:name="Call Response Iterator" doc:id="fd7ca707-35ca-440f-a53b-d5beebc963ac" name="workday-getallworkersIterationFlow"/>
-	</flow>
-	<sub-flow name="workday-getallworkersIterationFlow" doc:id="4bb68431-d56b-42d9-a923-2fc7f721f987" >
-		<ee:transform doc:name="Transform Message" doc:id="1bc955f3-d57d-4113-b1ce-4a98861faa22">
-			<ee:message>
-				<ee:set-payload><![CDATA[%dw 2.0
+		<ee:transform doc:name="Transform Message" doc:id="9012ba4b-4166-42c6-86fe-c05312ebd9bd" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
 var upperLimit = vars.totalPages as Number
 output application/json
 ---
@@ -84,14 +81,11 @@ output application/json
 			</ee:message>
 		</ee:transform>
 		<parallel-foreach doc:name="Parallel For Each" doc:id="e9408520-3ed0-4417-a5c9-5830d644033e">
-			<flow-ref doc:name="Publish to Queue" doc:id="e623741e-588c-4378-938c-073ca4414218" name="workday-getallworkersPublishFlow" />
+			<logger level="INFO" doc:name="Logger" doc:id="dbb596d3-c8b5-48d6-af5a-19f682cf92e8" message="## PUBLISHING PAGE: #[payload]"/>
+			<vm:publish doc:name="Publish" doc:id="3f0079a5-a818-41b8-b9ca-8126d876ee75" queueName="@{vmqueue.name}" sendCorrelationId="AUTO" config-ref="VM_Config" />
 		</parallel-foreach>
-	</sub-flow>
-	<flow name="workday-getallworkersPublishFlow" doc:id="65fbc058-d210-40e0-82df-dea8992138ec" >
-		<logger level="INFO" doc:name="Logger" doc:id="f8657e9c-7ed8-4fff-abc6-438d7b267f95" message="## PUBLISHING PAGE: #[payload]" />
-		<vm:publish doc:name="Publish" doc:id="3f0079a5-a818-41b8-b9ca-8126d876ee75" queueName="@{vmqueue.name}" sendCorrelationId="AUTO" config-ref="VM_Config"/>
 	</flow>
-	<flow name="workday-getallworkersListenerFlow" doc:id="3d6dcb45-ef23-4393-9459-d4f30f3f8997" >
+	<flow name="workday-processpagesFlow" doc:id="3d6dcb45-ef23-4393-9459-d4f30f3f8997" >
 		<vm:listener queueName="@{vmqueue.name}" doc:name="Listener" doc:id="06b13c47-48e4-441c-ae14-f9eb8b3e30b3" config-ref="VM_Config"/>
 		<async doc:name="Async" doc:id="d6ca1e66-3137-4f9d-891a-a67c0ea7faf7" >
 			<logger level="INFO" doc:name="Logger" doc:id="42a8ea65-4283-4785-98da-c11a18f5cfab" message="## CONSUMING PAGE: #[payload]" />
